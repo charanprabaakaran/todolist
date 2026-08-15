@@ -7,19 +7,24 @@ pipeline {
                 checkout scm
             }
         }
+        stage('Setup Virtual Environment') {
+            steps {
+                sh 'python3 -m venv venv'
+            }
+        }
         stage('Install Dependencies') {
             steps {
-                sh 'pip3 install -r requirements.txt || pip3 install django'
+                sh '. venv/bin/activate && pip install -r requirements.txt || . venv/bin/activate && pip install django'
             }
         }
         stage('Run Migrations') {
             steps {
-                sh 'python3 manage.py migrate'
+                sh '. venv/bin/activate && python manage.py migrate'
             }
         }
         stage('Run Tests') {
             steps {
-                sh 'python3 manage.py test || echo "No tests found or tests failed"'
+                sh '. venv/bin/activate && python manage.py test || echo "No tests found or tests failed"'
             }
         }
     }
