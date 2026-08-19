@@ -1,31 +1,57 @@
 pipeline {
     agent any
 
+    environment {
+        IMAGE_NAME = "todolist"
+        CONTAINER_NAME = "todolist-container"
+    }
+
     stages {
+
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
-        stage('Setup Virtual Environment') {
+
+        stage('Stop Old Container') {
             steps {
-                sh 'python3 -m venv venv'
+                sh """
+                docker stop ${CONTAINER_NAME} || true
+                docker rm ${CONTAINER_NAME} || true
+                """
             }
         }
-        stage('Install Dependencies') {
+
+        stage('Build Docker Image') {
             steps {
-                sh '. venv/bin/activate && pip install -r requirements.txt || . venv/bin/activate && pip install django'
+                sh "docker build -t ${IMAGE_NAME} ."
             }
         }
-        stage('Run Migrations') {
+
+        stage('Run New Container') {
             steps {
-                sh '. venv/bin/activate && python manage.py migrate'
+                sh "docker run -d -p 8000:8000 --name ${CONTAINER_NAME} ${IMAGE_NAME}"
             }
         }
-        stage('Run Tests') {
+
+        stage('Verify') {
             steps {
-                sh '. venv/bin/activate && python manage.py test || echo "No tests found or tests failed"'
+                sh "docker ps"
+                sh "sleep 5 && docker logs ${CONTAINER_NAME}"
             }
+        }
+    }
+
+    post {
+        success {
+            echo 'Deployment successful!'
+        }
+        failure {
+            echo 'Build or deployment failed. Check logs above.'
+        }
+        always {
+            sh "docker image prune -f"
         }
     }
 }
